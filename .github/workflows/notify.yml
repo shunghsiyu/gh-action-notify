@@ -19,8 +19,16 @@ jobs:
           GH_TOKEN: ${{ secrets.STABLE_CI_TOKEN }}
         id: ci-result
         run: |
-          run_id=$(gh run list --repo=shunghsiyu/libbpf --workflow=libbpf-ci --limit 30 --json 'databaseId,name,event,status,conclusion,updatedAt' --jq '[.[] | select(.event == "schedule") ] | sort_by(.updatedAt) | last | .databaseId')
-          gh run view --repo=shunghsiyu/libbpf "$run_id" --json createdAt,startedAt,conclusion,url,jobs | \
+          run_id=26722013870 #"$(gh run list --repo=shunghsiyu/libbpf --workflow=libbpf-ci --limit 30 --json 'databaseId,name,event,status,conclusion,updatedAt' --jq '[.[] | select(.event == "schedule") ] | sort_by(.updatedAt) | last | .databaseId')"
+          gh run view --repo=shunghsiyu/libbpf "$run_id" >result.txt
+          gh run view --repo=shunghsiyu/libbpf "$run_id" --json createdAt,startedAt,conclusion,url,jobs >result.json
+          conclusion=$(jq -r '.conclusion' result.json)
+          echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+
+
+      - name: Format comment
+        if: steps.ci-result.outputs.conclusion != 'success'
+        run: |
           jq -r '
             def icon: if . == "success" then "✓" else "✗" end;
             def duration:
@@ -29,23 +37,22 @@ jobs:
             def version_key:
               .name | capture("Linux (?<v>[0-9.]+)") | .v | split(".") | map(tonumber);
 
-            "\(.conclusion | icon) [Stable CI · \(.url | split("/")[-1])](\(.url)) on \(.createdAt)",
+            "\(.conclusion | icon) [Stable CI \(.url | split("/")[-1])](\(.url)) schedule on \(.createdAt) FAILED",
             "",
             "JOBS",
             ((.jobs | sort_by(version_key) | reverse)[] | "\( .conclusion | icon) [\(.name)](\(.url)) in \(duration) ")
-          ' >result.txt
-          echo '<details>' >>result.txt
-          echo '<summary>Annotations</summary>' >>result.txt
-          echo >>result.txt
-          gh run view --repo=shunghsiyu/libbpf "$run_id" | \
-          sed -e '1,/ANNOTATION/d' | \
-          head -n -4 >>result.txt
-          echo '</details>' >>result.txt
+          ' result.json >comment.txt
+          echo '<details>' >>comment.txt
+          echo '<summary>Annotations</summary>' >>comment.txt
+          echo >>comment.txt
+          sed -e 'e,/ANNOTATION/d' result.txt | \
+          head -n -4 >>comment.txt
+          echo '</details>' >>comment.txt
 
       - name: Notify Specific Issue
+        if: steps.ci-result.outputs.conclusion != 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: 1
-          COMMENT_BODY: "${{ steps.ci-result.outputs.stdout }}"
         run: |
-          gh issue comment "$ISSUE_NUMBER" --body "$(cat result.txt)"
+          gh issue comment "$ISSUE_NUMBER" --body "$(cat comment.txt)"

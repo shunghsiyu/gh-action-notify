@@ -19,7 +19,18 @@ jobs:
           GH_TOKEN: ${{ secrets.STABLE_CI_TOKEN }}
         id: ci-result
         run: |
-          gh run view --repo=shunghsiyu/libbpf $(gh run list --repo=shunghsiyu/libbpf --workflow=libbpf-ci --limit 30 --json 'databaseId,name,event,status,conclusion,updatedAt' --jq '[.[] | select(.event == "schedule") ] | sort_by(.updatedAt) | last | .databaseId') >result.txt
+          gh run view --repo=shunghsiyu/libbpf --json createdAt,startedAt,conclusion,url,jobs $(gh run list --repo=shunghsiyu/libbpf --workflow=libbpf-ci --limit 30 --json 'databaseId,name,event,status,conclusion,updatedAt' --jq '[.[] | select(.event == "schedule") ] | sort_by(.updatedAt) | last | .databaseId') | \
+          jq -r '
+            def icon: if . == "success" then "✓" else "✗" end;
+            def duration:
+              ((.completedAt | fromdateiso8601) - (.startedAt | fromdateiso8601)) as $d
+              | "\(($d / 60) | floor)m\($d % 60)s";
+
+            "\(.conclusion | icon) [Stable CI · \(.url | split("/")[-1])](\(.url)) on \(.createdAt)",
+            "",
+            "JOBS",
+            (.jobs[] | "\( .conclusion | icon) [\(.name) (ID \(.databaseId))](\(.url)) in \(duration) ")
+          ' >result.txt
 
       - name: Notify Specific Issue
         env:

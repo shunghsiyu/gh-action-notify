@@ -1,0 +1,21 @@
+name: Notify result
+
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Notify Specific Issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: 1
+          COMMENT_BODY: "Run ${{ github.run_id }} has completed"
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "$COMMENT_BODY"

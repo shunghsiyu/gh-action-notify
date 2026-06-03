@@ -19,7 +19,7 @@ jobs:
           GH_TOKEN: ${{ secrets.STABLE_CI_TOKEN }}
         id: ci-result
         run: |
-          run_id=26722013870 #"$(gh run list --repo=shunghsiyu/libbpf --workflow=libbpf-ci --limit 30 --json 'databaseId,name,event,status,conclusion,updatedAt' --jq '[.[] | select(.event == "schedule") ] | sort_by(.updatedAt) | last | .databaseId')"
+          run_id="$(gh run list --repo=shunghsiyu/libbpf --workflow=libbpf-ci --limit 30 --json 'databaseId,name,event,status,conclusion,updatedAt' --jq '[.[] | select(.event == "schedule") ] | sort_by(.updatedAt) | last | .databaseId')"
           gh run view --repo=shunghsiyu/libbpf "$run_id" >result.txt
           gh run view --repo=shunghsiyu/libbpf "$run_id" --json createdAt,startedAt,conclusion,url,jobs >result.json
           conclusion=$(jq -r '.conclusion' result.json)

@@ -10,12 +10,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Retrieve stable CI result
+        env:
+          GH_TOKEN: ${{ secrets.STABLE_CI_TOKEN }}
+        id: ci-result
+        run: |
+          gh run view --repo=shunghsiyu/libbpf $(gh run list --repo=shunghsiyu/libbpf --workflow=libbpf-ci --limit 30 --json 'databaseId,name,event,status,conclusion,updatedAt' --jq '[.[] | select(.event == "schedule") ] | sort_by(.updatedAt) | last | .databaseId') >result.txt
+
       - name: Notify Specific Issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: 1
-          COMMENT_BODY: "Run ${{ github.run_id }} has completed"
+          COMMENT_BODY: "${{ steps.ci-result.outputs.stdout }}"
         run: |
-          gh issue comment "$ISSUE_NUMBER" --body "$COMMENT_BODY"
+          gh issue comment "$ISSUE_NUMBER" --body "$(cat result.txt)"
